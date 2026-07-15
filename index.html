@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sesión 10 - Shadow Monarch</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    user-select: none;
+  }
+  
+  body {
+    background-color: #05050a;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    overflow: hidden;
+    perspective: 1000px; /* Profundidad 3D */
+    font-family: 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* Lienzo principal interactivo */
+  .dungeon-canvas {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    /* Fondo de Mazmorra de Videojuego (Piedra, niebla y misticismo) */
+    background: radial-gradient(circle at center, rgba(10, 15, 30, 0.4) 0%, #030307 100%),
+                url('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1920&auto=format&fit=crop'); /* Textura abstracta oscura que emula piedra de mazmorra */
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease-out;
+    cursor: pointer;
+  }
+
+  /* Grid místico estilo juego de rol de fondo */
+  .dungeon-grid {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background-image: 
+      linear-gradient(rgba(0, 242, 254, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 242, 254, 0.03) 1px, transparent 1px);
+    background-size: 50px 50px;
+    background-position: center;
+    pointer-events: none;
+    transform: translateZ(-150px) rotateX(60deg) scale(2);
+    opacity: 0.7;
+  }
+
+  /* Aura de energía de sombras (Resplandor azul en la mazmorra) */
+  .shadow-energy-aura {
+    position: absolute;
+    width: 90%;
+    height: 90%;
+    background: radial-gradient(circle, rgba(0, 150, 255, 0.18) 0%, rgba(10, 5, 30, 0.8) 70%, transparent 100%);
+    z-index: 1;
+    pointer-events: none;
+    transform: translateZ(-80px);
+    mix-blend-mode: screen;
+  }
+
+  /* Contenedor de Sung Jin-woo en Eje Z */
+  .character-container {
+    position: absolute;
+    bottom: 0%;
+    width: 90%;
+    height: 110%;
+    z-index: 3;
+    transform-style: preserve-3d;
+    transform: translateZ(120px) scale(1.05);
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    pointer-events: none;
+    transition: transform 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  }
+
+  /* Render de Jin-woo con animación de caminata pesada y aura viva */
+  .character-render {
+    width: auto;
+    height: 92%;
+    object-fit: contain;
+    content: url('jinwoo.jpg'); /* Carga de tu nueva imagen */
+    filter: drop-shadow(0 0 30px rgba(0, 110, 255, 0.4)) drop-shadow(0 15px 35px rgba(0, 0, 0, 0.95));
+    /* Sincronización de caminata + parpadeo del aura de sombras */
+    animation: menacing-walk 4s ease-in-out infinite, shadow-aurapulse 4s ease-in-out infinite;
+  }
+
+  /* TÍTULO DE INTERFAZ "SESIÓN 10" (Estilo RPG / Boss Level) */
+  .demon-title-container {
+    position: absolute;
+    bottom: 12%;
+    z-index: 10;
+    transform-style: preserve-3d;
+    transform: translateZ(200px);
+    pointer-events: none;
+    text-align: center;
+  }
+
+  .demon-title {
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-size: clamp(45px, 8vw, 85px);
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 10px;
+    /* Degradado de luz espiritual azul a ceniza oscura */
+    background: linear-gradient(180deg, #ffffff 10%, #00d2ff 50%, #0044ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 15px rgba(0, 210, 255, 0.8)) drop-shadow(0 10px 20px rgba(0,0,0,1));
+    margin: 0;
+    animation: title-glow 3s infinite alternate;
+  }
+
+  .demon-subtitle {
+    font-size: clamp(10px, 2vw, 13px);
+    font-weight: 900;
+    color: #00d2ff;
+    letter-spacing: 15px;
+    text-transform: uppercase;
+    margin-top: -5px;
+    text-shadow: 0 0 12px rgba(0, 210, 255, 0.9);
+  }
+
+  /* --- SISTEMA DE PARTÍCULAS DEL VACÍO --- */
+  .shadow-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00f2fe 0%, #0044ff 60%, #000000 100%);
+    box-shadow: 0 0 15px #00d2ff, 0 0 30px #0044ff;
+    pointer-events: none;
+    z-index: 99;
+    animation: float-shadow-up 2.5s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+  }
+
+  /* Animación: Caminata de Jin-woo (Balanceo físico imponente) */
+  @keyframes menacing-walk {
+    0%, 100% {
+      transform: translateY(0) rotate(0deg) scale(1);
+    }
+    25% {
+      transform: translateY(-8px) rotate(-1.5deg) scale(1.02); /* Paso izquierdo */
+    }
+    50% {
+      transform: translateY(0) rotate(0deg) scale(1);
+    }
+    75% {
+      transform: translateY(-8px) rotate(1.5deg) scale(1.02); /* Paso derecho */
+    }
+  }
+
+  /* Animación del Aura de Humo: El aura se enciende y deforma rítmicamente */
+  @keyframes shadow-aurapulse {
+    0%, 100% {
+      filter: drop-shadow(0 0 25px rgba(0, 110, 255, 0.3)) brightness(1) contrast(1);
+    }
+    50% {
+      filter: drop-shadow(0 0 45px rgba(0, 210, 255, 0.75)) brightness(1.15) contrast(1.1);
+    }
+  }
+
+  /* Brillo del título místico */
+  @keyframes title-glow {
+    0%, 100% { filter: drop-shadow(0 0 12px rgba(0, 210, 255, 0.7)); }
+    50% { filter: drop-shadow(0 0 22px rgba(0, 210, 255, 1)); }
+  }
+
+  /* Partículas de sombra subiendo */
+  @keyframes float-shadow-up {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-280px) translateX(var(--x-offset)) scale(0);
+      opacity: 0;
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="dungeon-canvas" id="dungeonCanvas">
+  <!-- Suelo de rejilla 3D -->
+  <div class="dungeon-grid"></div>
+
+  <!-- Aura de sombras mística de fondo -->
+  <div class="shadow-energy-aura"></div>
+
+  <!-- Capa 3D: Sung Jin-woo caminando -->
+  <div class="character-container" id="character">
+    <img class="character-render" alt="Shadow Monarch Jin-Woo">
+  </div>
+
+  <!-- Capa 3D Frontal: Título estilo Boss Fight -->
+  <div class="demon-title-container" id="demonTitle">
+    <h1 class="demon-title">SESIÓN 10</h1>
+    <div class="demon-subtitle">SHADOW MONARCH</div>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('dungeonCanvas');
+  const character = document.getElementById('character');
+  const demonTitle = document.getElementById('demonTitle');
+
+  // Interacción 3D suave con el cursor (Giroscopio virtual)
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left - rect.width / 2;
+    const y = e.clientY - rect.top - rect.height / 2;
+    
+    const rotateX = -y / 18;
+    const rotateY = x / 18;
+
+    canvas.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+    character.style.transform = `translateZ(120px) scale(1.08) translateX(${x * 0.1}px) translateY(${y * 0.06}px)`;
+    demonTitle.style.transform = `translateZ(200px) translateX(${x * 0.2}px) translateY(${y * 0.1}px)`;
+
+    // Generar partículas de sombras al mover el mouse
+    if (Math.random() < 0.35) {
+      createShadowParticle(e.clientX - rect.left, e.clientY - rect.top);
+    }
+  });
+
+  // Explosión de energía al hacer click
+  canvas.addEventListener('click', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    for (let i = 0; i < 10; i++) {
+      createShadowParticle(e.clientX - rect.left, e.clientY - rect.top);
+    }
+  });
+
+  // Pisadas místicas de Jin-woo (Generan partículas solas)
+  setInterval(() => {
+    const rect = canvas.getBoundingClientRect();
+    const side = Math.random() > 0.5 ? -40 : 40; 
+    const stepX = (rect.width / 2) + side;
+    const stepY = rect.height - 120; // Alrededor de los pies
+    
+    for (let i = 0; i < 4; i++) {
+      createShadowParticle(stepX + (Math.random() - 0.5) * 30, stepY);
+    }
+  }, 2000); // Sincronizado rítmicamente con los pasos de caminata
+
+  function createShadowParticle(x, y) {
+    const particle = document.createElement('div');
+    particle.className = 'shadow-particle';
+    particle.style.left = `${x}px`;
+    particle.style.top = `${y}px`;
+    
+    const xOffset = (Math.random() - 0.5) * 160;
+    particle.style.setProperty('--x-offset', `${xOffset}px`);
+
+    canvas.appendChild(particle);
+
+    setTimeout(() => {
+      particle.remove();
+    }, 2500);
+  }
+
+  // Animación elástica de retorno al salir el mouse
+  canvas.addEventListener('mouseleave', () => {
+    canvas.style.transition = "transform 0.8s cubic-bezier(0.25, 0.8, 0.25, 1)";
+    character.style.transition = "transform 0.8s cubic-bezier(0.25, 0.8, 0.25, 1)";
+    demonTitle.style.transition = "transform 0.8s cubic-bezier(0.25, 0.8, 0.25, 1)";
+    
+    canvas.style.transform = "rotateX(0deg) rotateY(0deg)";
+    character.style.transform = "translateZ(120px) scale(1.05) translateX(0) translateY(0)";
+    demonTitle.style.transform = "translateZ(200px) translateX(0) translateY(0)";
+  });
+
+  canvas.addEventListener('mouseenter', () => {
+    canvas.style.transition = "none";
+    character.style.transition = "none";
+    demonTitle.style.transition = "none";
+  });
+</script>
+
+</body>
+</html>
